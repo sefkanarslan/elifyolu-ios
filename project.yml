@@ -1,0 +1,33 @@
+name: ElifYolu
+options:
+  bundleIdPrefix: com.sefkan
+  deploymentTarget:
+    iOS: "15.0"
+targets:
+  ElifYolu:
+    type: application
+    platform: iOS
+    sources:
+      - path: ElifYolu/App.swift
+      - path: ElifYolu/Assets.xcassets
+      - path: ElifYolu/www
+        type: folder          # copied as a folder reference, keeps www/ paths
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sefkan.elifyolu
+        PRODUCT_NAME: ElifYolu
+        MARKETING_VERSION: "1.1"
+        CURRENT_PROJECT_VERSION: "2"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Elif Yolu
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UIRequiresFullScreen: YES
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
