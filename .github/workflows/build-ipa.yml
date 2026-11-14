@@ -26,17 +26,18 @@ jobs:
           test -f "$APP/www/audio/a/001001.mp3"
           plutil -p "$APP/Info.plist" | grep -E "CFBundle(Identifier|DisplayName|ShortVersionString)"
           lipo -info "$APP/ElifYolu"
+          plutil -p "$APP/Info.plist" | grep -E "NS(Microphone|SpeechRecognition)UsageDescription"
           mkdir -p Payload && cp -R "$APP" Payload/
-          zip -qry ElifYolu-1.1-unsigned.ipa Payload
-          ls -la ElifYolu-1.1-unsigned.ipa
+          zip -qry ElifYolu-1.2-unsigned.ipa Payload
+          ls -la ElifYolu-1.2-unsigned.ipa
       - uses: actions/upload-artifact@v4
         with:
           name: ElifYolu-ipa
-          path: ElifYolu-1.1-unsigned.ipa
+          path: ElifYolu-1.2-unsigned.ipa
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete v1.1 --yes --cleanup-tag 2>/dev/null || true
-          gh release create v1.1 ElifYolu-1.1-unsigned.ipa --title "Elif Yolu 1.1 (iOS)" \
+          gh release delete v1.2 --yes --cleanup-tag 2>/dev/null || true
+          gh release create v1.2 ElifYolu-1.2-unsigned.ipa --title "Elif Yolu 1.2 (iOS)" \
             --notes "İmzasız IPA. Windows/Mac'te Sideloadly ile kendi Apple ID'nle imzalayıp kur."

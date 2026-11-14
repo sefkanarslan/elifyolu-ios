@@ -223,4 +223,14 @@ const UNITS = [
     L('u14l3', 'Nâs tekrarı', 'surah', { surah: 'nas', fresh: [], pool: range(0, 5) }),
   ] },
 ];
+// ---- Ezber (memorisation) units: inserted after each surah's learning unit
+const EZ = (surah, name, color) => ({ id: 'ez-' + surah, title: 'Ezber: ' + name, desc: 'Boşlukları doldur, ezberden oku', color, ezber: true, lessons: [
+  L('ez-' + surah + '-1', 'Boşluk doldur', 'ezber', { surah, level: 1 }),
+  L('ez-' + surah + '-2', 'Eksik kelimeler', 'ezber', { surah, level: 2 }),
+  L('ez-' + surah + '-3', 'Ezberden oku', 'ezber', { surah, level: 3 }),
+] });
+[['u10', 'fatiha', 'Fâtiha', 'orange'], ['u11', 'ihlas', 'İhlâs', 'green'], ['u12', 'kevser', 'Kevser', 'blue'],
+ ['u13', 'felak', 'Felak', 'purple'], ['u14', 'nas', 'Nâs', 'green']].forEach(([after, surah, name, color]) => {
+  UNITS.splice(UNITS.findIndex(u => u.id === after) + 1, 0, EZ(surah, name, color));
+});
 const ALL_LESSONS = UNITS.flatMap(u => u.lessons.map(l => Object.assign(l, { unit: u })));

@@ -72,10 +72,10 @@ const MAXH = 5;
 function today(d = new Date()) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function dayDiff(a, b) { return Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 864e5); }
 const DEFAULT = () => ({ xp: 0, streak: 0, best: 0, lastDay: null, hearts: MAXH, heartsTs: Date.now(), done: {},
-  daily: { day: today(), xp: 0 }, settings: { goal: 20, hearts: true, sfx: true }, welcomed: false, lessons: 0 });
+  daily: { day: today(), xp: 0 }, settings: { goal: 20, hearts: true, sfx: true, haptics: true }, stars: {}, week: null, player: null, welcomed: false, lessons: 0 });
 let memStore = null;
 function load() {
-  try { const raw = localStorage.getItem(KEY); if (raw) return Object.assign(DEFAULT(), JSON.parse(raw)); } catch (e) { /* ignore */ }
+  try { const raw = localStorage.getItem(KEY); if (raw) { const d = DEFAULT(), o = Object.assign(d, JSON.parse(raw)); o.settings = Object.assign(DEFAULT().settings, o.settings); return o; } } catch (e) { /* ignore */ }
   return memStore || DEFAULT();
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { memStore = S; } }
@@ -441,7 +441,7 @@ function genSurah(ls) {
 }
 
 const SURAH_AR = { fatiha: 'الفاتحة', ihlas: 'الإخلاص', kevser: 'الكوثر', felak: 'الفلق', nas: 'الناس' };
-const UNIT_ICON = { u1: 'ا', u2: 'د', u3: 'ض', u4: 'ي', u5: 'ث', u6: 'بَ', u7: 'إِنَّ', u8: 'كِتَاب', u9: 'نُور', u10: 'الفاتحة', u11: 'الإخلاص', u12: 'الكوثر', u13: 'الفلق', u14: 'الناس' };
+const UNIT_ICON = { 'ez-fatiha': 'حفظ', 'ez-ihlas': 'حفظ', 'ez-kevser': 'حفظ', 'ez-felak': 'حفظ', 'ez-nas': 'حفظ', u1: 'ا', u2: 'د', u3: 'ض', u4: 'ي', u5: 'ث', u6: 'بَ', u7: 'إِنَّ', u8: 'كِتَاب', u9: 'نُور', u10: 'الفاتحة', u11: 'الإخلاص', u12: 'الكوثر', u13: 'الفلق', u14: 'الناس' };
 const KIND_DESC = {
   letters: 'Harfleri tanı, adlarını öğren ve eşleştir.',
   similar: 'Birbirine benzeyen harfleri noktalarından ayırt et.',
@@ -449,6 +449,7 @@ const KIND_DESC = {
   syll: 'Heceleri oku, işaretleri tanı.',
   words: 'Kur\'an\'da sık geçen kelimeleri öğren.',
   surah: 'Ayetleri oku, anlamını öğren, kelimeleri sırala.',
+  ezber: 'Sureyi ezberle: boşlukları doldur, eksik kelimeleri tamamla, ezberden oku.',
 };
 const GEN = { letters: genLetters, similar: genSimilar, forms: genForms, syll: genSyll, words: genWords, surah: genSurah };
 function generate(ls) { return GEN[ls.kind](ls).filter(Boolean); }
@@ -495,12 +496,14 @@ function nextStep() {
   TTS.stop();
   LS.locked = false;
   const old = $('.fb', lessonEl()); if (old) old.remove();
+  if (LS.cleanup) { LS.cleanup(); LS.cleanup = null; }
   if (!LS.steps.length) return finishLesson();
   const q = LS.cur = LS.steps.shift();
   const body = $('#lbody'), foot = $('#lfoot');
   body.innerHTML = ''; foot.innerHTML = ''; foot.classList.remove('has-fb'); body.scrollTop = 0;
-  ({ intro: renderIntro, choice: renderChoice, match: renderMatch, build: renderBuild })[q.type](q, body, foot);
+  RENDER[q.type](q, body, foot);
 }
+const RENDER = { intro: (q, b, f) => renderIntro(q, b, f), choice: (q, b, f) => renderChoice(q, b, f), match: (q, b, f) => renderMatch(q, b, f), build: (q, b, f) => renderBuild(q, b, f) };
 function renderIntro(q, body, foot) {
   body.append(q.build());
   if (q.say && TTS.has(q.say)) setTimeout(() => { if (LS && LS.cur === q) TTS.say(q.say); }, 250);
@@ -606,6 +609,7 @@ function renderBuild(q, body, foot) {
 function judge(ok, q, answerText, answerAr) {
   LS.locked = true;
   if (ok) { sfx.ok(); LS.done++; if (!q._missed) LS.firstOk++; if (q.ayahKey && TTS.has('@' + q.ayahKey)) setTimeout(() => { if (LS && LS.cur === q) TTS.say('@' + q.ayahKey); }, 450); }
+  else if (q.soft) { sfx.bad(); LS.mistakes++; q._missed = true; LS.done++; }
   else {
     sfx.bad(); LS.mistakes++; q._missed = true;
     if (heartsOn() && !LS.practice) { regen(); if (S.hearts === MAXH) S.heartsTs = Date.now(); S.hearts = Math.max(0, S.hearts - 1); save(); }
@@ -614,9 +618,9 @@ function judge(ok, q, answerText, answerAr) {
     LS.steps.push(q);
   }
   updateLessonTop();
-  const out = !ok && heartsOn() && !LS.practice && S.hearts <= 0;
+  const out = !ok && !q.soft && heartsOn() && !LS.practice && S.hearts <= 0;
   const fb = h('div', { class: 'fb ' + (ok ? 'ok' : 'no') },
-    h('h4', null, h('span', { class: 'ic', html: ok ? I.check : I.x }), ok ? pick(OK_WORDS) : 'Doğru cevap:'),
+    h('h4', null, h('span', { class: 'ic', html: ok ? I.check : I.x }), ok ? pick(OK_WORDS) : (q.soft ? 'Sonra tekrar dene' : 'Doğru cevap:')),
     !ok && answerText ? h('div', { class: 'ans' }, answerAr ? arSpan(answerText) : answerText) : null,
     ok && q.reveal ? h('div', { class: 'ans' }, arSpan(q.reveal)) : null,
     h('button', { class: 'btn' + (ok ? '' : ' red'), onclick: () => (out ? outOfHearts() : nextStep()) }, out ? 'Tamam' : 'Devam'));
@@ -643,14 +647,76 @@ function confirmQuit() {
     h('button', { class: 'btn', onclick: closeModal }, 'Derse devam'),
     h('button', { class: 'btn ghost', style: 'color:var(--red)', onclick: () => { closeModal(); exitLesson(); } }, 'Çık')));
 }
-function exitLesson() { TTS.stop(); LS = null; lessonEl().classList.add('hidden'); lessonEl().innerHTML = ''; render(); }
+function exitLesson() { TTS.stop(); if (LS && LS.cleanup) LS.cleanup(); LS = null; lessonEl().classList.add('hidden'); lessonEl().innerHTML = ''; render(); }
+
+/* ---- celebration: haptics, shake, confetti ---- */
+const reduceMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+const Haptic = {
+  // Android: Vibrator via bridge · iOS app: UINotificationFeedbackGenerator · browsers: navigator.vibrate
+  play(kind) {
+    if (!S.settings.haptics) return;
+    const pat = { success: '0,35,70,35,70,110', star: '0,25', light: '0,15', error: '0,60,50,60' }[kind] || '0,30';
+    try {
+      if (window.Android && Android.vibrate) return Android.vibrate(pat);
+      if (window.webkit && webkit.messageHandlers && webkit.messageHandlers.native) return webkit.messageHandlers.native.postMessage({ cmd: 'haptic', style: kind });
+      if (navigator.vibrate) navigator.vibrate(pat.split(',').slice(1).map(Number));
+    } catch (e) { /* no haptics */ }
+  },
+};
+function shakeScreen(el) {
+  if (reduceMotion()) return;
+  el.classList.remove('quake'); void el.offsetWidth; el.classList.add('quake');
+  setTimeout(() => el.classList.remove('quake'), 700);
+}
+function confetti(host, { count = 140, stars = false } = {}) {
+  if (reduceMotion()) return;
+  const cv = h('canvas', { class: 'confetti', 'aria-hidden': 'true' });
+  host.append(cv);
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = cv.width = host.clientWidth * dpr, H = cv.height = host.clientHeight * dpr;
+  const ctx = cv.getContext('2d');
+  const COLORS = ['#58cc02', '#1cb0f6', '#ffc800', '#ff9600', '#ce82ff', '#ff4b4b'];
+  const P = Array.from({ length: count }, () => ({
+    x: W / 2 + (Math.random() - 0.5) * W * 0.3, y: H * 0.36, vx: (Math.random() - 0.5) * 16 * dpr, vy: (-6 - Math.random() * 12) * dpr,
+    r: (4 + Math.random() * 5) * dpr, a: Math.random() * 6.28, va: (Math.random() - 0.5) * 0.3, c: pick(COLORS), star: stars && Math.random() < 0.35,
+  }));
+  const t0 = performance.now();
+  const star = (x, y, r) => { ctx.beginPath(); for (let k = 0; k < 10; k++) { const rr = k % 2 ? r * 0.45 : r, an = -Math.PI / 2 + k * Math.PI / 5; ctx.lineTo(x + rr * Math.cos(an), y + rr * Math.sin(an)); } ctx.closePath(); ctx.fill(); };
+  (function frame(t) {
+    const life = (t - t0) / 1000;
+    ctx.clearRect(0, 0, W, H);
+    P.forEach(p => {
+      p.vy += 0.35 * dpr; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.a += p.va;
+      ctx.globalAlpha = Math.max(0, 1 - life / 2.6); ctx.fillStyle = p.c;
+      if (p.star) star(p.x, p.y, p.r * 1.4);
+      else { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r); ctx.restore(); }
+    });
+    if (life < 2.6 && cv.isConnected) requestAnimationFrame(frame); else cv.remove();
+  })(t0);
+}
+function starsFor(mistakes, graded) {
+  if (mistakes === 0) return 3;
+  return mistakes <= Math.max(2, Math.round(graded * 0.15)) ? 2 : 1;
+}
+const STAR_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2.2l2.95 6.1 6.7.85-4.9 4.65 1.25 6.65L12 17.2l-6 3.25 1.25-6.65-4.9-4.65 6.7-.85z"/></svg>';
+function isoWeek(d = new Date()) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return t.getUTCFullYear() + '-W' + String(Math.ceil(((t - y0) / 864e5 + 1) / 7)).padStart(2, '0');
+}
+function addWeekXp(xp) {
+  const wk = isoWeek();
+  if (!S.week || S.week.key !== wk) S.week = { key: wk, xp: 0 };
+  S.week.xp += xp;
+}
 
 function finishLesson() {
   const perfect = LS.mistakes === 0;
   const xp = LS.practice ? 5 : 10 + (perfect ? 5 : 0);
   checkDay();
   const goalBefore = S.daily.xp >= S.settings.goal;
-  S.xp += xp; S.daily.xp += xp;
+  S.xp += xp; S.daily.xp += xp; addWeekXp(xp);
   const t = today();
   let streakUp = false;
   if (S.lastDay !== t) {
@@ -658,20 +724,31 @@ function finishLesson() {
     S.best = Math.max(S.best, S.streak); S.lastDay = t; streakUp = true;
   }
   let heartGain = false;
+  const stars = starsFor(LS.mistakes, LS.graded);
+  let newBest = false;
   if (LS.practice) { regen(); if (S.hearts < MAXH) { S.hearts++; heartGain = true; if (S.hearts === MAXH) S.heartsTs = Date.now(); } }
-  else { const d = S.done[LS.lesson.id] || { n: 0 }; d.n++; d.last = t; S.done[LS.lesson.id] = d; }
+  else {
+    const d = S.done[LS.lesson.id] || { n: 0 }; d.n++; d.last = t; S.done[LS.lesson.id] = d;
+    S.stars = S.stars || {};
+    if (stars > (S.stars[LS.lesson.id] || 0)) { newBest = !!S.stars[LS.lesson.id]; S.stars[LS.lesson.id] = stars; }
+  }
   S.lessons++;
   save();
-  sfx.win();
+  if (typeof League !== 'undefined') League.sync();
   const secs = Math.round((Date.now() - LS.t0) / 1000);
   const acc = LS.graded ? Math.round(LS.firstOk / LS.graded * 100) : 100;
   const goalNow = !goalBefore && S.daily.xp >= S.settings.goal;
   const el = lessonEl();
   el.innerHTML = '';
   const box = (c, label, val) => h('div', { class: 'rbox', style: `--c:${c}` }, h('small', null, label), h('b', null, val));
+  const starRow = h('div', { class: 'stars-row', 'aria-label': `${stars} yıldız` },
+    [1, 2, 3].map(k => h('span', { class: 'bigstar' + (k <= stars ? ' on' : ''), html: STAR_SVG, style: `--d:${0.25 + k * 0.32}s` })));
+  const titles = { 3: 'Kusursuz!', 2: 'Çok iyi!', 1: 'Ders tamamlandı!' };
   el.append(h('div', { class: 'result' },
-    mascot('happy', 'bounce'),
-    h('h1', null, LS.practice ? 'Alıştırma tamam!' : perfect ? 'Kusursuz ders!' : 'Ders tamamlandı!'),
+    LS.practice ? mascot('happy', 'bounce') : starRow,
+    h('h1', null, LS.practice ? 'Alıştırma tamam!' : titles[stars]),
+    !LS.practice && stars < 3 ? h('p', { class: 'star-hint' }, stars === 2 ? 'Hiç hata yapmadan bitirirsen 3. yıldızı alırsın.' : 'Tekrar ederek daha fazla yıldız toplayabilirsin.') : null,
+    newBest ? h('p', { class: 'star-hint best' }, 'Yeni rekor!') : null,
     h('div', { class: 'boxes' },
       box('var(--yellow)', 'Toplam XP', '+' + xp),
       box('var(--green)', 'Doğruluk', '%' + acc),
@@ -679,6 +756,12 @@ function finishLesson() {
     heartGain ? h('p', { style: 'color:var(--red);font-size:17px;font-weight:900;margin-top:18px' }, '+1 kalp kazandın') : null,
     goalNow ? h('p', { style: 'color:var(--orange);font-size:17px;font-weight:900;margin-top:14px' }, 'Günlük hedefini tamamladın!') : null),
     h('div', { class: 'l-foot' }, h('button', { class: 'btn', onclick: () => (streakUp ? streakScreen() : exitLesson()) }, 'Devam')));
+  // the celebration: shake + haptic pulse, then one pop per earned star, then confetti
+  sfx.win();
+  shakeScreen(el);
+  Haptic.play('success');
+  if (!LS.practice) for (let k = 1; k <= stars; k++) setTimeout(() => { if (lessonEl() === el && el.isConnected) { tone([[660 + k * 220, 0, .12]], 'triangle', .12); Haptic.play('star'); } }, (0.25 + k * 0.32) * 1000 + 180);
+  setTimeout(() => confetti(el, { count: 60 + stars * 50, stars: stars === 3 }), LS.practice ? 150 : (0.25 + stars * 0.32) * 1000 + 250);
   LS = null;
 }
 function streakScreen() {
@@ -734,7 +817,7 @@ function render() {
   document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === TAB));
   const v = $('#view');
   v.innerHTML = '';
-  ({ path: renderPath, abc: renderABC, surahs: renderSurahs, profile: renderProfile })[TAB](v);
+  ({ path: renderPath, abc: renderABC, surahs: renderSurahs, league: renderLeague, profile: renderProfile })[TAB](v);
 }
 function setTab(t) { TTS.stop(); TAB = t; render(); $('#view').scrollTop = 0; if (t === 'path') scrollToCurrent(); }
 
@@ -757,8 +840,12 @@ function renderPath(v) {
       const isLast = li === u.lessons.length - 1;
       const ic = state === 'locked' ? 'lock' : state === 'done' ? (isLast ? 'trophy' : 'check') : (isLast ? 'trophy' : 'star');
       const node = h('button', { class: 'node ' + state, id: state === 'current' ? 'cur-node' : null, html: I[ic], onclick: () => lessonModal(l, state, ui, li) });
-      const w = h('div', { class: 'node-wrap', style: `transform:translateX(${OFF[(li + ui * 3) % 8]}px)` }, node);
-      if (state === 'current') w.append(h('div', { class: 'start-tip' }, Object.keys(S.done).length ? 'DEVAM' : 'BAŞLA'));
+      const off = OFF[(li + ui * 3) % 8];
+      const w = h('div', { class: 'node-wrap', style: `transform:translateX(${off}px)` }, node);
+      // the "start" bubble sits beside the node (away from the screen edge) so it never covers the stars above
+      if (state === 'current') w.append(h('div', { class: 'start-tip ' + (off > 0 ? 'left' : 'right') }, Object.keys(S.done).length ? 'DEVAM' : 'BAŞLA'));
+      const st = (S.stars || {})[l.id];
+      if (st) w.append(h('div', { class: 'node-stars', 'aria-label': st + ' yıldız' }, [1, 2, 3].map(k => h('span', { class: k <= st ? 'on' : '', html: STAR_SVG }))));
       nodes.append(w);
     });
     sec.append(nodes);
@@ -823,7 +910,8 @@ function renderReader(v) {
       h('button', { class: 'chip play-all', id: 'playall', onclick: () => playSurah(READER.surah) }, '▶ Tamamını dinle')),
     s.besmeleIsAyah ? null : h('div', { class: 'ar besmele', id: 'row-besmele' }, BESMELE),
     s.ayahs.map((a, i) => h('div', { class: 'ayah-row', id: 'row-' + i },
-      h('div', { class: 'ayah-head' }, speakBtn(`@${READER.surah}:${i}`, 'sm'),
+      h('div', { class: 'ayah-head' }, h('div', { class: 'ayah-btns' }, speakBtn(`@${READER.surah}:${i}`, 'sm'),
+        Recite.Speech.available() ? h('button', { class: 'mic sm', 'aria-label': 'Okumamı kontrol et', html: MIC_SVG, onclick: e => readerCheck(e.currentTarget.closest('.ayah-row'), a.ar, e.currentTarget) }) : null),
         h('span', { class: 'ar', lang: 'ar' }, a.ar + ' ', h('span', { class: 'end' }, '(' + arDigits(i + 1) + ')'))),
       READER.read ? h('div', { class: 'tr' }, `${i + 1}. ${a.read}`) : null,
       READER.mean ? h('div', { class: 'mn' }, a.mean) : null)),
@@ -870,6 +958,7 @@ function renderProfile(v) {
       h('div', { class: 'chips' }, [10, 20, 30, 50].map(g => h('button', { class: 'chip' + (S.settings.goal === g ? ' on' : ''), onclick: () => { S.settings.goal = g; save(); render(); } }, String(g))))),
     sw('hearts', 'Kalp sistemi', 'Kapalıyken yanlış cevaplar kalp götürmez'),
     sw('sfx', 'Ses efektleri', 'Doğru/yanlış sesleri'),
+    sw('haptics', 'Titreşim', 'Ders bitince ve yıldız kazanınca telefon titreşir'),
     h('div', { class: 'setrow' }, h('div', null, h('b', null, 'Sesler'), h('span', null, 'Uygulamanın içinde, internetsiz çalışır. Harf, hece ve kelime sesleri harekeli metinden üretilmiş Arapça sestir; ayetler Mişari Raşid el-Afasi\'nin kıraatidir.'))),
     h('button', { class: 'danger', onclick: () => showModal([h('h3', null, 'İlerlemeyi sıfırla?'), h('p', null, 'Tüm XP, seri ve tamamlanan dersler silinir. Bu işlem geri alınamaz.'),
       h('button', { class: 'btn red', onclick: () => { const st = S.settings; S = DEFAULT(); S.settings = st; S.welcomed = true; save(); closeModal(); setTab('path'); } }, 'Sıfırla'),
@@ -911,4 +1000,4 @@ function boot() {
   setInterval(() => { if (!LS) renderTop(); }, 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !LS) render(); });
 }
-boot();
+window.addEventListener('DOMContentLoaded', boot);
