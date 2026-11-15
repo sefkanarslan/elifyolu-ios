@@ -4,19 +4,34 @@
 'use strict';
 
 const Q = (() => {
-  const cache = {}, waiting = {};
-  window.__qs = (n, d) => { cache[n] = d; (waiting[n] || []).forEach(f => f()); delete waiting[n]; };
-  const meta = n => window.QURAN_INDEX[n - 1];        // [no, tr name, ar name, M/D, count]
-  function load(n) {
-    if (cache[n]) return Promise.resolve(cache[n]);
-    return new Promise((ok, fail) => {
-      (waiting[n] = waiting[n] || []).push(() => ok(cache[n]));
-      if (waiting[n].length > 1) return;
+  const cache = {}, meals = {}, loading = {};
+  const LANG = I18N.lang;
+  // the artifact build ships one bundle per folder instead of 114 small files
+  const BUNDLE = !!window.QURAN_BUNDLED;
+  window.__qs = (n, d) => { cache[n] = d; };
+  window.__qm = (n, l, m) => { if (l === LANG) meals[n] = m; };
+  // [no, name, ar name, M/D, count, subtitle, Turkish name] — name in the interface language
+  const meta = n => {
+    const m = window.QURAN_INDEX[n - 1], L = window.QURAN_NAMES && window.QURAN_NAMES[n - 1];
+    return L ? [m[0], L[0], m[2], m[3], m[4], L[1], m[1]] : [m[0], m[1], m[2], m[3], m[4], '', m[1]];
+  };
+  function script(src, ready) {
+    if (ready()) return Promise.resolve();
+    if (!loading[src]) loading[src] = new Promise((ok, fail) => {
       const sc = document.createElement('script');
-      sc.src = 'quran/s/' + String(n).padStart(3, '0') + '.js';
-      sc.onerror = () => { delete waiting[n]; fail(new Error('load ' + n)); };
+      sc.src = src;
+      sc.onload = ok;
+      sc.onerror = () => { delete loading[src]; sc.remove(); fail(new Error('load ' + src)); };
       document.head.append(sc);
     });
+    return loading[src];
+  }
+  function load(n) {
+    const f = BUNDLE ? 'all.js' : String(n).padStart(3, '0') + '.js';
+    return Promise.all([
+      script('quran/s/' + f, () => cache[n]),
+      LANG === 'tr' ? null : script('quran/m/' + LANG + '/' + f, () => meals[n]),
+    ]).then(() => { if (!cache[n] || (LANG !== 'tr' && !meals[n])) throw new Error('surah ' + n + ' missing'); return cache[n]; });
   }
   // okunuş (transliteration) exists only for the five surahs taught on the path
   const READS = { 1: 'fatiha', 108: 'kevser', 112: 'ihlas', 113: 'felak', 114: 'nas' };
@@ -24,7 +39,7 @@ const Q = (() => {
     const d = cache[n], m = meta(n);
     if (!d) throw new Error('surah not loaded: ' + n);
     const rd = READS[n] && SURAHS[READS[n]];
-    return { no: n, name: m[1], arName: m[2], place: m[3], ayahs: d.ar.map((ar, i) => ({ ar, mean: d.tr[i], read: rd ? rd.ayahs[i].read : null })),
+    return { no: n, name: m[1], arName: m[2], place: m[3], ayahs: d.ar.map((ar, i) => ({ ar, mean: LANG === 'tr' ? d.tr[i] : meals[n][i], read: rd ? rd.ayahs[i].read : null })),
       akey: i => `q:${n}:${i}` };
   }
   // ezber parts: consecutive ayahs, about 30 words or 5 ayahs each
@@ -76,7 +91,7 @@ const Q = (() => {
 /* ---------------- Sureler sekmesi ---------------- */
 const READER = { surah: null, mode: 'read', read: true, mean: true, query: '', playAll: false };
 const BESMELE_U = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ';
-const trFold = s => String(s).toLocaleLowerCase('tr').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[ı]/g, 'i').replace(/[^a-z0-9]/g, '');
+const trFold = s => String(s).toLocaleLowerCase('tr').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[ı]/g, 'i').replace(/[ʿʾ'’]/g, '').replace(/[^\p{L}\p{N}]/gu, '');
 function surahStars(n) { const pre = `q-${n}-`; return Object.entries(S.stars || {}).reduce((t, [k, v]) => t + (k.startsWith(pre) ? v : 0), 0); }
 
 function renderSurahs(v) {
@@ -86,13 +101,14 @@ function renderSurahs(v) {
   const draw = () => {
     const q = trFold(READER.query), qa = Recite.norm(READER.query);
     list.innerHTML = '';
-    const rows = window.QURAN_INDEX.filter(([no, tr, ar]) => !q && !qa || String(no) === READER.query.trim() || (q && trFold(tr).includes(q)) || (qa && Recite.norm(ar).includes(qa)));
+    const rows = window.QURAN_INDEX.map(r => Q.meta(r[0])).filter(([no, name, ar, , , sub, trName]) => !q && !qa || String(no) === READER.query.trim()
+      || (q && [name, sub, trName].some(x => x && trFold(x).includes(q))) || (qa && Recite.norm(ar).includes(qa)));
     if (!rows.length) list.append(h('div', { class: 'lb-empty' }, 'Bu adla bir sure bulunamadı.'));
-    rows.forEach(([no, tr, ar, place, count]) => {
+    rows.forEach(([no, name, ar, place, count, sub]) => {
       const st = surahStars(no);
       list.append(h('button', { class: 'surah-item', onclick: () => openSurah(no) },
         h('div', { class: 'no' }, String(no)),
-        h('div', { class: 'si-mid' }, h('b', null, tr), h('span', null, `${place === 'M' ? 'Mekke' : 'Medine'} · ${count} ayet`),
+        h('div', { class: 'si-mid' }, h('b', null, name), sub ? h('span', { class: 'si-sub' }, sub) : null, h('span', null, `${place === 'M' ? 'Mekke' : 'Medine'} · ${count} ayet`),
           st ? h('span', { class: 'si-stars', html: STAR_SVG + `<i>${st}</i>` }) : null),
         arSpan(ar)));
     });
@@ -116,7 +132,7 @@ function renderSurahPage(v) {
     h('button', { role: 'tab', 'aria-selected': String(READER.mode === k), class: READER.mode === k ? 'on' : '', onclick: () => { TTS.stop(); READER.playAll = false; READER.mode = k; render(); } }, t)));
   page.append(
     h('button', { class: 'chip', onclick: () => { TTS.stop(); READER.playAll = false; READER.surah = null; render(); } }, '‹ Sureler'),
-    h('div', { class: 'sp-head' }, h('div', null, h('h1', null, `${m[1]} Suresi`), h('p', { class: 'lead', style: 'margin:0' }, `${n}. sure · ${m[3] === 'M' ? 'Mekke' : 'Medine'} · ${m[4]} ayet`)),
+    h('div', { class: 'sp-head' }, h('div', null, h('h1', null, `${m[1]} Suresi`), m[5] ? h('p', { class: 'lead sp-sub', style: 'margin:0' }, m[5]) : null, h('p', { class: 'lead', style: 'margin:0' }, `${n}. sure · ${m[3] === 'M' ? 'Mekke' : 'Medine'} · ${m[4]} ayet`)),
       h('div', { class: 'ar sp-ar' }, m[2])),
     seg);
   const body = h('div', { class: 'sp-body' }, h('div', { class: 'lb-empty' }, 'Yükleniyor…'));

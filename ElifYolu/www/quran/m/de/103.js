@@ -1,0 +1,1 @@
+window.__qm(103,"de",["Beim Zeitalter!","Der Mensch befindet sich wahrlich in Verlust,","außer denjenigen, die glauben und rechtschaffene Werke tun und einander die Wahrheit eindringlich empfehlen und einander die Standhaftigkeit eindringlich empfehlen."]);

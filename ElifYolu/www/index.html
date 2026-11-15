@@ -19,8 +19,10 @@
     </nav>
   </div>
   <div id="lesson" class="hidden"></div>
+  <script src="i18n.js"></script>
   <script src="audio.js"></script>
   <script src="content.js"></script>
+  <script>I18N.applyContent();</script>
   <script src="recite.js"></script>
   <script src="app.js"></script>
   <script src="ezber.js"></script>
@@ -34,6 +36,7 @@
     document.getElementById('t-surahs').innerHTML = I.book;
     document.getElementById('t-profile').innerHTML = I.user;
     document.getElementById('t-league').innerHTML = I.trophy;
+    I18N.start();
   </script>
 </body>
 </html>

@@ -305,7 +305,7 @@ function introMarks(marks, items) {
     h('h2', null, multi ? 'Tenvin' : marks[0]),
     h('p', { class: 'sub' }, multi ? 'Harekenin iki kez yazılmasıdır; okurken sona bir "n" sesi eklenir.' : MARK_INFO[marks[0]].text),
     h('div', { class: 'group' }, (multi ? marks.map(m => items.find(i => i.mark === m)) : items.filter(i => marks.includes(i.mark)).slice(0, 4))
-      .map(i => h('div', null, arSpan(i.ar), h('small', null, i.read)))),
+      .map(i => h('div', null, arSpan(i.ar), i.read ? h('small', null, i.read) : null))),
   ) };
 }
 function qMarkName(s) {
@@ -326,7 +326,7 @@ function genSyll(ls) {
     if (ls.marks.every(m => TENV3.includes(m))) out.push(introMarks(ls.marks, items));
     else ls.marks.forEach(m => out.push(introMarks([m], items)));
   }
-  const makers = [
+  const makers = I18N.noReads() ? [s => qMarkName(s) || qWhichHas(s)] : [
     s => C({ label: 'Oku', title: 'Bu hece nasıl okunur?', big: s.ar, bigClass: s.ar.length > 3 ? 'mid' : '', say: s.say, layout: 'grid2', ...choice(s, pool, RKEY) }),
     s => C({ label: 'Yaz', title: `“${s.read}” hangisi?`, arOpts: true, layout: 'grid2', ...choice(s, pool, LKEY) }),
     s => qMarkName(s) || qWhichHas(s),
@@ -336,7 +336,7 @@ function genSyll(ls) {
   const qs = [];
   for (let i = 0; i < 10; i++) qs.push(makers[i % makers.length](order[i % order.length]));
   out.push(...shuffle(qs));
-  out.splice(out.length - rnd(3), 0, qMatch(items, LKEY, RKEY, true, false, 4));
+  if (!I18N.noReads()) out.splice(out.length - rnd(3), 0, qMatch(items, LKEY, RKEY, true, false, 4));
   return out;
 }
 
@@ -348,7 +348,7 @@ function introWord(w) {
     h('span', { class: 'badge' }, 'Yeni kelime'),
     h('div', { class: 'big-ar mid' }, w.ar),
     TTS.ok() ? speakBtn(w.say) : null,
-    h('div', { class: 'read' }, w.read),
+    w.read ? h('div', { class: 'read' }, w.read) : null,
     h('div', { class: 'mean' }, w.mean),
   ) };
 }
@@ -357,11 +357,11 @@ function genWords(ls) {
   const qW2M = w => C({ label: 'Anlam', title: 'Bu kelimenin anlamı ne?', big: w.ar, bigClass: 'mid', say: w.say, layout: 'list', ...choice(w, pool, MKEY) });
   const qM2W = w => C({ label: 'Kelimeyi bul', title: `“${w.mean}” hangisi?`, arOpts: true, layout: 'grid2', ...choice(w, pool, LKEY) });
   const qW2R = w => C({ label: 'Oku', title: 'Bu kelime nasıl okunur?', big: w.ar, bigClass: 'mid', say: w.say, layout: 'grid2', ...choice(w, pool, RKEY) });
-  const makers = [qW2M, qM2W, qW2R];
+  const makers = I18N.noReads() ? [qW2M, qM2W] : [qW2M, qM2W, qW2R];
   if (TTS.ok()) makers.push(w => C({ label: 'Dinle', title: 'Duyduğun kelimeyi seç', listen: true, say: w.say, arOpts: true, layout: 'grid2', ...choice(w, pool, LKEY) }));
   const head = [];
   ls.fresh.forEach(w => { head.push(introWord(w)); head.push(qW2M(w)); });
-  const rest = ls.fresh.map(qW2R);
+  const rest = ls.fresh.map(I18N.noReads() ? qM2W : qW2R);
   const order = shuffle(ls.pool);
   let i = 0;
   while (head.filter(s => s.type !== 'intro').length + rest.length < 10) rest.push(pick(makers)(order[i++ % order.length]));
@@ -388,8 +388,8 @@ function introAyah(su, i) {
     h('span', { class: 'badge' }, `${su.name} · ${i + 1}. ayet`),
     h('div', { class: 'big-ar ayah' }, a.ar),
     TTS.has(key) ? speakBtn(key) : null,
-    h('div', { class: 'read' }, a.read),
-    h('div', { class: 'mean' }, a.mean),
+    a.read ? h('div', { class: 'read' }, a.read) : null,
+    a.mean ? h('div', { class: 'mean' }, a.mean) : null,
   ) };
 }
 function genSurah(ls) {
@@ -426,9 +426,12 @@ function genSurah(ls) {
   };
   const out = [];
   if (ls.fresh.includes(0)) out.push(introSurah(su));
-  ls.fresh.forEach(i => { out.push(introAyah(su, i)); out.push(qRead(i)); out.push(qBuild(i)); });
-  const rest = ls.fresh.map(qMean);
-  const makers = [qMean, qBuild, qMissing, qRead, i => (i < A.length - 1 ? qNext(i) : qMissing(i))];
+  // Arabic UI: no transliteration to choose from, and the tafsir is too long for an option list
+  const plain = I18N.noReads() || !A[0].mean;
+  const qNextOr = i => (i < A.length - 1 ? qNext(i) : qMissing(i));
+  ls.fresh.forEach(i => { out.push(introAyah(su, i)); out.push(plain ? qMissing(i) : qRead(i)); out.push(qBuild(i)); });
+  const rest = ls.fresh.map(plain ? qNextOr : qMean);
+  const makers = plain ? [qBuild, qMissing, qNextOr] : [qMean, qBuild, qMissing, qRead, qNextOr];
   const order = shuffle(ls.pool);
   let n = 0;
   const target = ls.fresh.length ? 10 : 11;
@@ -913,6 +916,7 @@ function renderProfile(v) {
       scard('star', 'var(--green)', `${learnedLetters}/28`, 'Öğrenilen harf')),
     h('div', { class: 'goal' }, ring, h('div', null, h('b', null, 'Günlük hedef'), h('span', null, `Bugün ${S.daily.xp} / ${S.settings.goal} XP · En uzun seri: ${S.best} gün`))),
     h('div', { class: 'sec-title' }, 'Ayarlar'),
+    h('div', { class: 'setrow stack' }, h('div', null, h('b', null, 'Dil · Language')), langChips()),
     h('div', { class: 'setrow stack' }, h('div', null, h('b', null, 'Günlük XP hedefi'), h('span', null, 'Her ders 10–15 XP kazandırır')),
       h('div', { class: 'chips' }, [10, 20, 30, 50].map(g => h('button', { class: 'chip' + (S.settings.goal === g ? ' on' : ''), onclick: () => { S.settings.goal = g; save(); render(); } }, String(g))))),
     sw('hearts', 'Kalp sistemi', 'Kapalıyken yanlış cevaplar kalp götürmez'),
@@ -923,15 +927,20 @@ function renderProfile(v) {
       h('button', { class: 'btn red', onclick: () => { const st = S.settings; S = DEFAULT(); S.settings = st; S.welcomed = true; save(); closeModal(); setTab('path'); } }, 'Sıfırla'),
       h('button', { class: 'btn ghost', onclick: closeModal }, 'Vazgeç')]) }, 'İlerlemeyi sıfırla'),
     h('div', { class: 'note' }, 'Elif Yolu, Kur\'an-ı Kerim okumaya giriş için hazırlanmış bir öğrenme oyunudur: harfler, harekeler, temel kelimeler ve kısa sureler. Mealler kısa ve sadedir. Doğru telaffuz ve tecvid için mutlaka bir hocadan ya da güvenilir kıraat kayıtlarından destek al.'),
-    h('div', { class: 'note', style: 'margin-top:10px' }, 'Kıraat: Mişari Raşid el-Afasi (everyayah.com). Kur\'an metni: Medine Mushafı (quranenc.com). Meal: Diyanet İşleri Başkanlığı (tanzil.net). Yazı tipleri: Amiri ve Nunito (SIL Open Font License). Sürüm 1.3')));
+    h('div', { class: 'note', style: 'margin-top:10px' }, 'Kıraat: Mişari Raşid el-Afasi (everyayah.com). Kur\'an metni: Medine Mushafı (quranenc.com). Meal: Diyanet İşleri Başkanlığı (tanzil.net). Yazı tipleri: Amiri, Nunito ve Tajawal (SIL Open Font License). Sürüm 1.4')));
 }
 
+function langChips() {
+  return h('div', { class: 'chips langs' }, I18N.LANGS.map(l => h('button', { class: 'chip' + (I18N.lang === l ? ' on' : ''), lang: l, dir: 'auto',
+    onclick: () => { if (l !== I18N.lang) { save(); I18N.set(l); } } }, I18N.NAMES[l])));
+}
 function welcome() {
   let goal = S.settings.goal;
   const chips = h('div', { class: 'chips', style: 'justify-content:center;margin:4px 0 18px' });
   const draw = () => { chips.innerHTML = ''; [[10, 'Rahat'], [20, 'Normal'], [30, 'Ciddi'], [50, 'Yoğun']].forEach(([g, t]) => chips.append(h('button', { class: 'chip' + (goal === g ? ' on' : ''), onclick: () => { goal = g; draw(); } }, `${t} · ${g} XP`))); };
   draw();
   showModal(h('div', { class: 'center', style: 'text-align:center' },
+    langChips(),
     mascot('happy', 'bounce'),
     h('h3', null, 'Esselâmü aleyküm!'),
     h('p', null, 'Ben Kandil. Elif Yolu\'nda Kur\'an harflerini, harekeleri ve kısa sureleri adım adım, oyun oynar gibi öğreneceğiz.'),

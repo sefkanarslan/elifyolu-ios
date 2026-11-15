@@ -1,0 +1,1 @@
+window.__qm(110,"es",["[¡Oh, Mujámmad!] Cuando llegue el socorro de Dios y la victoria","y veas a la gente ingresar en masa a la religión de Dios","glorifica alabando a tu Señor y pide Su perdón; Él es Indulgente"]);

@@ -1,0 +1,1 @@
+window.__qm(110,"de",["Wenn Allahs Hilfe kommt und der Sieg","und du die Menschen in Allahs Religion in Scharen eintreten siehst,","dann lobpreise deinen Herrn und bitte Ihn um Vergebung; gewiß, Er ist Reueannehmend."]);

@@ -1,0 +1,1 @@
+window.__qm(108,"de",["Wir haben dir ja al-Kautar gegeben.","So bete zu deinem Herrn und opfere.","Gewiß, derjenige, der dich haßt, - er ist vom Guten abgetrennt ."]);

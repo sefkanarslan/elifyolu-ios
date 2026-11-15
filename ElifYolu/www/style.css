@@ -7,6 +7,12 @@
 @font-face { font-family: 'Amiri'; font-weight: 400; font-display: swap; src: url(fonts/amiri-arabic-400-normal.woff2) format('woff2'); unicode-range: U+0600-06FF,U+0750-077F,U+08A0-08FF,U+200C-200E,U+FB50-FDFF,U+FE70-FEFC; }
 @font-face { font-family: 'Amiri'; font-weight: 700; font-display: swap; src: url(fonts/amiri-arabic-700-normal.woff2) format('woff2'); unicode-range: U+0600-06FF,U+0750-077F,U+08A0-08FF,U+200C-200E,U+FB50-FDFF,U+FE70-FEFC; }
 
+@font-face { font-family: 'Nunito'; font-weight: 700; font-display: swap; src: url(fonts/nunito-cyrillic-700-normal.woff2) format('woff2'); unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116; }
+@font-face { font-family: 'Nunito'; font-weight: 800; font-display: swap; src: url(fonts/nunito-cyrillic-800-normal.woff2) format('woff2'); unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116; }
+@font-face { font-family: 'Nunito'; font-weight: 900; font-display: swap; src: url(fonts/nunito-cyrillic-900-normal.woff2) format('woff2'); unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116; }
+@font-face { font-family: 'Tajawal'; font-weight: 700; font-display: swap; src: url(fonts/tajawal-arabic-700-normal.woff2) format('woff2'); unicode-range: U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0898-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC; }
+@font-face { font-family: 'Tajawal'; font-weight: 800; font-display: swap; src: url(fonts/tajawal-arabic-800-normal.woff2) format('woff2'); unicode-range: U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0898-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC; }
+@font-face { font-family: 'Tajawal'; font-weight: 900; font-display: swap; src: url(fonts/tajawal-arabic-800-normal.woff2) format('woff2'); unicode-range: U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0898-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC; }
 :root {
   --green: #58cc02; --green-d: #46a302; --green-l: #d7ffb8;
   --blue: #1cb0f6; --blue-d: #1899d6; --blue-l: #ddf4ff;
@@ -115,7 +121,7 @@ button { font-family: inherit; font-weight: 800; color: inherit; border: 0; back
 .opts.grid2 { grid-template-columns: 1fr 1fr; }
 .opt { border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 16px; padding: 14px 14px; font-size: 18px; text-align: center; background: #fff; min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 10px; line-height: 1.35; }
 .opt .num { flex: none; width: 28px; height: 28px; border: 2px solid var(--line); border-radius: 8px; font-size: 14px; color: #afafaf; display: grid; place-items: center; }
-.opt.left { justify-content: flex-start; text-align: left; font-size: 16px; }
+.opt.left { justify-content: flex-start; text-align: start; font-size: 16px; }
 .opt.ar-opt { font-family: var(--ar); font-weight: 400; font-size: 40px; padding: 4px 10px; min-height: 84px; direction: rtl; line-height: 1.7; }
 .opt.ar-opt.long { font-size: 24px; line-height: 1.9; }
 .opt.sel { border-color: #84d8ff; background: var(--blue-l); color: var(--blue-d); }
@@ -176,7 +182,7 @@ button { font-family: inherit; font-weight: 800; color: inherit; border: 0; back
 .mascot { width: 150px; height: 150px; }
 .mascot.sm { width: 84px; height: 84px; }
 .mascot.bounce { animation: hop 1s ease-in-out infinite; } @keyframes hop { 50% { transform: translateY(-10px); } }
-.bubble { position: relative; border: 2px solid var(--line); border-radius: 16px; padding: 10px 14px; font-size: 16px; line-height: 1.4; text-align: left; }
+.bubble { position: relative; border: 2px solid var(--line); border-radius: 16px; padding: 10px 14px; font-size: 16px; line-height: 1.4; text-align: start; }
 
 /* pages */
 .page { padding: 18px 16px 110px; max-width: 520px; margin: 0 auto; }
@@ -196,7 +202,7 @@ button { font-family: inherit; font-weight: 800; color: inherit; border: 0; back
 .surah-item { display: flex; align-items: center; gap: 14px; border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 16px; padding: 12px 14px; text-align: left; width: 100%; }
 .surah-item .no { width: 42px; height: 42px; border-radius: 12px; background: var(--green-l); color: var(--green-d); display: grid; place-items: center; font-weight: 900; flex: none; }
 .surah-item b { font-size: 17px; display: block; } .surah-item span { color: var(--muted); font-size: 13px; }
-.surah-item .ar { margin-left: auto; font-size: 24px; color: var(--green-d); }
+.surah-item .ar { margin-inline-start: auto; font-size: 24px; color: var(--green-d); }
 .reader .besmele { text-align: center; font-size: 28px; margin: 4px 0 10px; }
 .ayah-row { border-bottom: 2px solid var(--line); padding: 12px 0; }
 .ayah-row .ar { font-size: 28px; line-height: 2.1; text-align: right; display: block; }
@@ -232,7 +238,7 @@ button { font-family: inherit; font-weight: 800; color: inherit; border: 0; back
 .ayah-head .speak { margin-top: 10px; }
 .ayah-row.playing, .besmele.playing { background: var(--green-l); border-radius: 12px; }
 .ayah-row { transition: background .2s; padding-left: 6px; padding-right: 6px; }
-.chip.play-all { margin-left: auto; color: var(--green-d); }
+.chip.play-all { margin-inline-start: auto; color: var(--green-d); }
 .chip.play-all.on { border-color: var(--green); background: var(--green-l); }
 .mean .speak { margin: 8px auto 0; }
 
@@ -275,7 +281,7 @@ button { font-family: inherit; font-weight: 800; color: inherit; border: 0; back
 .mic-cap { font-size: 13px; color: var(--muted); }
 .ez-live { min-height: 28px; text-align: center; font-family: var(--ar); font-size: 22px; color: var(--muted); line-height: 1.8; }
 .ez-live.small { font-size: 18px; text-align: right; }
-.ez-live.err { font-family: var(--ui); font-size: 15px; color: var(--red-d); direction: ltr; text-align: center; }
+.ez-live.err { font-family: var(--ui); font-size: 15px; color: var(--red-d); unicode-bidi: plaintext; text-align: center; }
 .ez-msg { display: grid; gap: 10px; margin-top: 4px; }
 .ez-score { font-weight: 900; font-size: 16px; text-align: center; }
 .ez-score.good { color: var(--green-d); } .ez-score.bad { color: var(--red-d); }
@@ -354,3 +360,13 @@ button { font-family: inherit; font-weight: 800; color: inherit; border: 0; back
 .lv-st span { width: 12px; height: 12px; display: inline-grid; }
 .lv-st svg { fill: var(--line); }
 .lv-st .on svg { fill: var(--yellow); }
+
+/* ---- v1.4: languages ---- */
+html[lang=ar] { --ui: 'Tajawal', 'Nunito', system-ui, sans-serif; }
+html[lang=ar] .tabbar button { font-size: 11px; }
+.chips.langs { flex-wrap: wrap; gap: 8px; }
+.chips.langs .chip { padding: 6px 12px; font-size: 14px; }
+#modal .chips.langs { justify-content: center; margin: 0 0 14px; }
+.si-mid .si-sub { font-size: 13px; color: var(--muted); font-weight: 700; }
+.sp-sub { font-size: 15px; color: var(--muted); }
+html[dir=rtl] .surah-item, html[dir=rtl] .opt.left { text-align: right; }

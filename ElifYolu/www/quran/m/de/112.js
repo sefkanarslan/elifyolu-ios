@@ -1,0 +1,1 @@
+window.__qm(112,"de",["Sag: Er ist Allah, ein Einer,","Allah, der Überlegene.","Er hat nicht gezeugt und ist nicht gezeugt worden,","und niemand ist Ihm jemals gleich."]);

@@ -1,0 +1,1 @@
+window.__qm(103,"es",["Juro por el tiempo","que los seres humanos están en la perdición","excepto aquellos que crean, obren rectamente, y se aconsejen mutuamente con la verdad y con la paciencia [ante las adversidades]"]);

@@ -1,0 +1,1 @@
+window.__qm(113,"en",["Say, \"I seek refuge in the Lord of daybreak","From the evil of that which He created","And from the evil of darkness when it settles","And from the evil of the blowers in knots","And from the evil of an envier when he envies"]);

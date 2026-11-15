@@ -204,8 +204,8 @@ RENDER.recite = function renderRecite(q, body, foot) {
   const showMasked = () => { stage.innerHTML = ''; stage.append(q.hidden ? ayahMasked(text, shown) : ayahMarked(text, null)); };
   showMasked();
   body.append(stage);
-  const mean = h('div', { class: 'hint-mean' }, q.su.ayahs[q.i].mean);
-  body.append(mean);
+  // the Arabic tafsir quotes the ayah itself, so it would give the answer away
+  if (q.su.ayahs[q.i].mean && !I18N.noReads()) body.append(h('div', { class: 'hint-mean' }, q.su.ayahs[q.i].mean));
   const msg = h('div', { class: 'ez-msg', role: 'status' });
   body.append(msg);
   const listenAyah = () => TTS.say('@' + q.ayahKey);

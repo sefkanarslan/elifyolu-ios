@@ -1,0 +1,1 @@
+window.__qm(112,"es",["Di: \"Él es Al-lah, Uno","Al-lah es el Absoluto","No engendró ni fue engendrado","Y no hay nada ni nadie que sea semejante a Él"]);
