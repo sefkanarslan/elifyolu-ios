@@ -1,49 +1,78 @@
 /* Elif Yolu — Ezber (memorisation) lessons and the recitation check UI */
 'use strict';
 
-/* ---------------- generators ---------------- */
-function ezWords(su) { return su.ayahs.map(a => a.ar.split(' ')); }
-function ezDistractors(su, exclude, n) {
-  const own = uniqBy(ezWords(su).flat(), x => x).filter(w => !exclude.includes(w));
-  const other = uniqBy(Object.values(SURAHS).filter(s => s !== su).flatMap(s => s.ayahs.flatMap(a => a.ar.split(' '))), x => x)
-    .filter(w => !exclude.includes(w) && !own.includes(w));
-  const picked = sample(own, Math.min(n, own.length));
-  return picked.concat(sample(other, n - picked.length));
+/* ---------------- generators ----------------
+   A "surah view" su = { name, arName, no, akey(i) → audio key, ayahs: [{ ar, mean }] }
+   works both for the five path surahs (content.js) and for any of the 114 (library.js). */
+function ezPathSurah(k) {
+  const s = SURAHS[k];
+  return { name: s.name, arName: SURAH_AR[k], no: s.no, ayahs: s.ayahs, akey: i => `${k}:${i}` };
 }
-// words worth hiding: skip one-letter particles, prefer content words
+let EZ_POOL = null;   // fallback distractor words when a surah is very short
+function ezDistractors(su, exclude, n, near) {
+  const words = list => uniqBy(list.flatMap(a => a.ar.split(' ')), x => x).filter(w => !exclude.includes(w) && Recite.norm(w).length >= 2);
+  const lo = near ? Math.max(0, near[0] - 6) : 0, hi = near ? Math.min(su.ayahs.length, near[1] + 7) : su.ayahs.length;
+  const own = words(su.ayahs.slice(lo, hi));
+  let picked = sample(own, Math.min(n, own.length));
+  if (picked.length < n) {
+    const more = words(su.ayahs).filter(w => !picked.includes(w));
+    picked = picked.concat(sample(more, n - picked.length));
+  }
+  if (picked.length < n) {
+    EZ_POOL = EZ_POOL || uniqBy(Object.values(SURAHS).flatMap(s => s.ayahs.flatMap(a => a.ar.split(' '))), x => x);
+    picked = picked.concat(sample(EZ_POOL.filter(w => !exclude.includes(w) && !picked.includes(w)), n - picked.length));
+  }
+  return picked;
+}
+// words worth hiding: skip one/two-letter particles, prefer content words
 function ezHideable(words) {
   const idx = words.map((w, k) => k).filter(k => Recite.norm(words[k]).length >= 3);
   return idx.length ? idx : words.map((_, k) => k);
 }
-function ezChoiceBlank(su, key, i) {
+const ezLabel = (su, i) => `${su.name} · ${i + 1}. ayet`;
+function ezChoiceBlank(su, i, near) {
   const words = su.ayahs[i].ar.split(' ');
   const k = pick(ezHideable(words));
-  const opts = shuffle([words[k], ...ezDistractors(su, [words[k]], 3)]);
-  return C({ ayahKey: `${key}:${i}`, label: `${su.name} · ${i + 1}. ayet`, title: 'Boşluğa hangi kelime gelir?', arOpts: true, layout: 'grid2',
+  const opts = shuffle([words[k], ...ezDistractors(su, [words[k]], 3, near)]);
+  return C({ ayahKey: su.akey(i), label: ezLabel(su, i), title: 'Boşluğa hangi kelime gelir?', arOpts: true, layout: 'grid2',
     options: opts, answer: opts.indexOf(words[k]), reveal: su.ayahs[i].ar,
     bigNode: () => h('div', { class: 'big-ar ayah blank-ayah' }, words.map((w, j) => j === k ? h('span', { class: 'gap' }, ' ') : w + ' ')) });
 }
-function ezBlanks(su, key, i, ratio) {
+function ezBlanks(su, i, ratio, near) {
   const words = su.ayahs[i].ar.split(' ');
   const can = ezHideable(words);
-  const n = Math.max(1, Math.min(can.length, Math.round(words.length * ratio), words.length >= 4 ? 99 : 1));
-  const hide = sample(can, Math.max(n, words.length >= 4 ? 2 : 1)).sort((a, b) => a - b);
+  const want = words.length >= 4 ? Math.max(2, Math.round(words.length * ratio)) : 1;
+  const hide = sample(can, Math.min(can.length, want, 6)).sort((a, b) => a - b);   // never more than 6 gaps
   const need = hide.map(k => words[k]);
-  const bank = shuffle([...need, ...ezDistractors(su, need, Math.min(3, 1 + Math.ceil(hide.length / 2)))]);
-  return { type: 'blanks', ayahKey: `${key}:${i}`, label: `${su.name} · ${i + 1}. ayet`, title: 'Eksik kelimeleri sırayla yerleştir', words, hide, bank };
+  const bank = shuffle([...need, ...ezDistractors(su, need, Math.min(3, 1 + Math.ceil(hide.length / 2)), near)]);
+  return { type: 'blanks', ayahKey: su.akey(i), label: ezLabel(su, i), title: 'Eksik kelimeleri sırayla yerleştir', words, hide, bank };
 }
-function ezNext(su, key, i) {
+function ezNext(su, i) {
   const A = su.ayahs, nxt = A[i + 1];
-  const others = Object.values(SURAHS).filter(s => s !== su).flatMap(s => s.ayahs);
-  const pool = fill([nxt, ...A.filter((_, j) => j !== i && j !== i + 1)], others, LKEY, 3);
-  return C({ ayahKey: `${key}:${i + 1}`, label: 'Sıradaki ayet', title: 'Bu ayetten sonra hangisi gelir?', big: A[i].ar, bigClass: 'ayah', say: `@${key}:${i}`,
-    arOpts: true, longOpts: true, layout: 'list', ...choice(nxt, pool, LKEY, 3) });
+  const pool = uniqBy([nxt, ...sample(A.filter((_, j) => j !== i && j !== i + 1), 6)], LKEY);
+  while (pool.length < 3) pool.push(pick(Object.values(SURAHS).flatMap(s => s.ayahs)));
+  return C({ ayahKey: su.akey(i + 1), label: 'Sıradaki ayet', title: 'Bu ayetten sonra hangisi gelir?', big: A[i].ar, bigClass: 'ayah', say: '@' + su.akey(i),
+    arOpts: true, longOpts: true, layout: 'list', ...choice(nxt, uniqBy(pool, LKEY), LKEY, 3) });
 }
-function ezRecite(su, key, i, hidden) {
-  return { type: 'recite', ayahKey: `${key}:${i}`, su, key, i, hidden, soft: true, label: `${su.name} · ${i + 1}. ayet`,
-    title: hidden ? `${i + 1}. ayeti ezberden oku` : `${i + 1}. ayeti oku` };
+// recitation: long ayahs are split into parts of about 10 words so the
+// recogniser does not stop in the middle and the reader can breathe
+const EZ_SEG = 12;
+function ezSegments(n) {
+  if (n <= EZ_SEG + 2) return [[0, n]];
+  const parts = Math.ceil(n / 10), size = Math.ceil(n / parts), out = [];
+  for (let a = 0; a < n; a += size) out.push([a, Math.min(n, a + size)]);
+  return out;
 }
-function ezIntro(su, level) {
+function ezRecites(su, i, hidden) {
+  const words = su.ayahs[i].ar.split(' ');
+  const segs = ezSegments(words.length);
+  return segs.map(([a, b], s) => ({ type: 'recite', ayahKey: su.akey(i), su, i, seg: segs.length > 1 ? [a, b] : null, hidden, soft: true,
+    label: ezLabel(su, i) + (segs.length > 1 ? ` · bölüm ${s + 1}/${segs.length}` : ''),
+    title: hidden ? (segs.length > 1 ? `${i + 1}. ayetin ${s + 1}. bölümünü ezberden oku` : `${i + 1}. ayeti ezberden oku`) : `${i + 1}. ayeti oku`,
+    ctx: { surah: su.no, ayah: i + 1, firstWord: a } }));
+}
+function ezIntro(su, level, range) {
+  const where = range ? ` (${range[0] + 1}–${range[1]}. ayetler)` : '';
   const T = {
     1: ['Ezber 1', 'Boşluk doldur', 'Ayetler sırayla gelecek; her birinde bir kelime eksik. Sureyi bölüm bölüm hafızana yerleştir.'],
     2: ['Ezber 2', 'Eksik kelimeler', 'Bu sefer birden fazla kelime eksik. Kelimeleri ayetteki sırasıyla yerleştir.'],
@@ -53,26 +82,31 @@ function ezIntro(su, level) {
   }[level];
   return { type: 'intro', build: () => h('div', { class: 'intro' },
     h('span', { class: 'badge' }, T[0]),
-    h('div', { class: 'big-ar mid' }, SURAH_AR[ezKey(su)]),
+    h('div', { class: 'big-ar mid' }, su.arName),
     h('h2', null, `${su.name}: ${T[1]}`),
+    where ? h('p', { class: 'read' }, where.trim().replace(/[()]/g, '')) : null,
     h('p', { class: 'sub' }, T[2])) };
 }
-const ezKey = su => Object.keys(SURAHS).find(k => SURAHS[k] === su);
 
 function genEzber(ls) {
-  const su = SURAHS[ls.surah], K = ls.surah, A = su.ayahs, out = [ezIntro(su, ls.level)];
-  const idx = A.map((_, i) => i);
+  // path lessons: ls.surah (5 short surahs) · library lessons: ls.q + ls.range [from, to)
+  const su = ls.surah ? ezPathSurah(ls.surah) : Q.view(ls.q);
+  const [from, to] = ls.range || [0, su.ayahs.length];
+  const idx = []; for (let i = from; i < to; i++) idx.push(i);
+  const near = [from, to - 1];
+  const out = [ezIntro(su, ls.level, ls.range)];
+  const hasNext = i => i + 1 < su.ayahs.length;
   if (ls.level === 1) {
-    idx.forEach(i => out.push(ezChoiceBlank(su, K, i)));
-    const extra = sample(idx.filter(i => A[i].ar.split(' ').length >= 3), Math.max(0, Math.min(4, 10 - A.length)));
-    extra.sort((a, b) => a - b).forEach(i => out.push(ezBlanks(su, K, i, 0.3)));
-    if (out.length < 7 && A.length > 1) out.push(ezNext(su, K, rnd(A.length - 1)));
+    idx.forEach(i => out.push(ezChoiceBlank(su, i, near)));
+    const extra = sample(idx.filter(i => su.ayahs[i].ar.split(' ').length >= 3), Math.max(0, Math.min(4, 10 - idx.length)));
+    extra.sort((a, b) => a - b).forEach(i => out.push(ezBlanks(su, i, 0.3, near)));
+    const nx = idx.filter(hasNext);
+    if (out.length < 7 && nx.length) out.push(ezNext(su, pick(nx)));
   } else if (ls.level === 2) {
-    idx.forEach(i => out.push(ezBlanks(su, K, i, 0.5)));
-    const nexts = sample(idx.slice(0, -1), Math.min(3, A.length - 1)).sort((a, b) => a - b);
-    nexts.forEach(i => out.push(ezNext(su, K, i)));
+    idx.forEach(i => out.push(ezBlanks(su, i, 0.5, near)));
+    sample(idx.filter(hasNext), Math.min(3, Math.max(1, idx.length - 1))).sort((a, b) => a - b).forEach(i => out.push(ezNext(su, i)));
   } else {
-    idx.forEach(i => out.push(ezRecite(su, K, i, true)));
+    idx.forEach(i => out.push(...ezRecites(su, i, true)));
   }
   return out;
 }
@@ -135,14 +169,14 @@ function ayahMasked(text, shown) {
 }
 
 /* One listening session against one ayah. Calls back with the alignment result. */
-function listenFor(expected, ui, done) {
+function listenFor(expected, ui, done, ctx) {
   TTS.stop();
   let finished = false, last = [];
   const finish = (texts, err) => {
     if (finished) return; finished = true;
     ui.mic.classList.remove('live'); ui.mic.innerHTML = MIC_SVG;
     if (err) return done(null, err);
-    done(Recite.best(expected, texts.length ? texts : last));
+    done(Recite.check(expected, texts.length ? texts : last, ctx));
   };
   ui.mic.classList.add('live'); ui.mic.innerHTML = STOP_SVG;
   ui.live.textContent = 'Dinliyorum…';
@@ -161,7 +195,8 @@ function listenFor(expected, ui, done) {
 }
 
 RENDER.recite = function renderRecite(q, body, foot) {
-  const text = q.su.ayahs[q.i].ar;
+  const full = q.su.ayahs[q.i].ar;
+  const text = q.seg ? full.split(' ').slice(q.seg[0], q.seg[1]).join(' ') : full;
   const can = Recite.Speech.available();
   body.append(h('div', { class: 'q-label' }, q.label), h('h2', { class: 'q-title' }, q.title));
   let shown = 0, attempts = 0;
@@ -207,7 +242,7 @@ RENDER.recite = function renderRecite(q, body, foot) {
     stage.innerHTML = ''; stage.append(ayahMarked(text, r.status));
     const okN = r.ok, tot = r.total;
     msg.innerHTML = '';
-    if (Recite.passed(r)) {
+    if (r.pass) {
       msg.append(h('div', { class: 'ez-score good' }, `${okN}/${tot} kelime doğru`));
       Haptic.play('light');
       judge(true, q);
@@ -224,7 +259,7 @@ RENDER.recite = function renderRecite(q, body, foot) {
     if (LS.locked) return;
     if (stop) { stop(); return; }
     msg.innerHTML = '';
-    stop = listenFor(text, { mic, live }, result);
+    stop = listenFor(text, { mic, live }, result, q.ctx);
   };
   const skip = h('button', { class: 'btn ghost', hidden: true, onclick: () => { if (stop) stop(); Recite.Speech.cancel(); judge(false, q, text, true); } }, 'Şimdilik geç');
   if (hint) foot.append(h('div', { class: 'ez-row', style: 'margin-bottom:10px' }, hint, h('button', { class: 'chip', onclick: listenAyah }, 'Dinle')));
@@ -232,7 +267,7 @@ RENDER.recite = function renderRecite(q, body, foot) {
 };
 
 /* ---------------- reader: "okumamı kontrol et" per ayah ---------------- */
-function readerCheck(row, text, btn) {
+function readerCheck(row, text, btn, ctx) {
   if (!Recite.Speech.available()) { toast('Bu cihazda konuşma tanıma yok.'); return; }
   if (row._stop) { row._stop(); return; }
   let out = row.querySelector('.rc-out');
@@ -243,8 +278,8 @@ function readerCheck(row, text, btn) {
     row._stop = null;
     if (err) { live.textContent = Recite.errText(err); live.classList.add('err'); return; }
     out.innerHTML = '';
-    out.append(ayahMarked(text, r.status), h('div', { class: 'ez-score ' + (Recite.passed(r) ? 'good' : 'bad') },
-      Recite.passed(r) ? `Doğru okudun · ${r.ok}/${r.total} kelime` : `${r.ok}/${r.total} kelime doğru. Kırmızı kelimeleri tekrar et.`));
-    Haptic.play(Recite.passed(r) ? 'light' : 'error');
-  });
+    out.append(ayahMarked(text, r.status), h('div', { class: 'ez-score ' + (r.pass ? 'good' : 'bad') },
+      r.pass ? `Doğru okudun · ${r.ok}/${r.total} kelime` : `${r.ok}/${r.total} kelime doğru. Kırmızı kelimeleri tekrar et.`));
+    Haptic.play(r.pass ? 'light' : 'error');
+  }, ctx);
 }

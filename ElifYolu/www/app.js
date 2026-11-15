@@ -760,8 +760,10 @@ function finishLesson() {
   sfx.win();
   shakeScreen(el);
   Haptic.play('success');
-  if (!LS.practice) for (let k = 1; k <= stars; k++) setTimeout(() => { if (lessonEl() === el && el.isConnected) { tone([[660 + k * 220, 0, .12]], 'triangle', .12); Haptic.play('star'); } }, (0.25 + k * 0.32) * 1000 + 180);
-  setTimeout(() => confetti(el, { count: 60 + stars * 50, stars: stars === 3 }), LS.practice ? 150 : (0.25 + stars * 0.32) * 1000 + 250);
+  const stillHere = res => res.isConnected;
+  const resEl = el.querySelector('.result');
+  if (!LS.practice) for (let k = 1; k <= stars; k++) setTimeout(() => { if (stillHere(resEl)) { tone([[660 + k * 220, 0, .12]], 'triangle', .12); Haptic.play('star'); } }, (0.25 + k * 0.32) * 1000 + 180);
+  setTimeout(() => { if (stillHere(resEl)) confetti(el, { count: 60 + stars * 50, stars: stars === 3 }); }, LS.practice ? 150 : (0.25 + stars * 0.32) * 1000 + 250);
   LS = null;
 }
 function streakScreen() {
@@ -891,50 +893,7 @@ function renderABC(v) {
     h('div', { class: 'marks' }, Object.entries(MARK_INFO).map(([name, m]) => h('div', { class: 'markrow' }, arSpan(m.sign), h('div', null, h('b', null, name), h('span', null, m.text)))))));
 }
 
-const READER = { surah: null, read: true, mean: true };
-function renderSurahs(v) {
-  if (READER.surah) return renderReader(v);
-  v.append(h('div', { class: 'page' },
-    h('h1', null, 'Sureler'),
-    h('p', { class: 'lead' }, 'Öğrendiğin sureleri okunuşu ve anlamıyla oku.'),
-    h('div', { class: 'surah-list' }, Object.entries(SURAHS).map(([k, s]) => h('button', { class: 'surah-item', onclick: () => { READER.surah = k; render(); $('#view').scrollTop = 0; } },
-      h('div', { class: 'no' }, String(s.no)), h('div', null, h('b', null, s.name), h('span', null, `${s.ayahs.length} ayet`)), arSpan(SURAH_AR[k]))))));
-}
-function renderReader(v) {
-  const s = SURAHS[READER.surah];
-  const chip = (key, label) => h('button', { class: 'chip' + (READER[key] ? ' on' : ''), onclick: () => { READER[key] = !READER[key]; render(); } }, label);
-  v.append(h('div', { class: 'page reader' },
-    h('button', { class: 'chip', onclick: () => { TTS.stop(); READER.surah = null; render(); } }, '‹ Sureler'),
-    h('h1', { style: 'margin-top:12px' }, s.name + ' Suresi'),
-    h('div', { class: 'toggles' }, chip('read', 'Okunuş'), chip('mean', 'Meal'),
-      h('button', { class: 'chip play-all', id: 'playall', onclick: () => playSurah(READER.surah) }, '▶ Tamamını dinle')),
-    s.besmeleIsAyah ? null : h('div', { class: 'ar besmele', id: 'row-besmele' }, BESMELE),
-    s.ayahs.map((a, i) => h('div', { class: 'ayah-row', id: 'row-' + i },
-      h('div', { class: 'ayah-head' }, h('div', { class: 'ayah-btns' }, speakBtn(`@${READER.surah}:${i}`, 'sm'),
-        Recite.Speech.available() ? h('button', { class: 'mic sm', 'aria-label': 'Okumamı kontrol et', html: MIC_SVG, onclick: e => readerCheck(e.currentTarget.closest('.ayah-row'), a.ar, e.currentTarget) }) : null),
-        h('span', { class: 'ar', lang: 'ar' }, a.ar + ' ', h('span', { class: 'end' }, '(' + arDigits(i + 1) + ')'))),
-      READER.read ? h('div', { class: 'tr' }, `${i + 1}. ${a.read}`) : null,
-      READER.mean ? h('div', { class: 'mn' }, a.mean) : null)),
-    h('div', { class: 'note' }, 'Okunuşlar yalnızca yardımcıdır; Arapça seslerin tamamı Latin harfleriyle tam karşılanamaz. Doğru tecvid için bir hocadan ya da güvenilir kıraat kayıtlarından yararlan.')));
-}
-
-function playSurah(key) {
-  const s = SURAHS[key];
-  const queue = (s.besmeleIsAyah ? [] : [['@besmele', 'row-besmele']]).concat(s.ayahs.map((_, i) => [`@${key}:${i}`, 'row-' + i]));
-  const btn = $('#playall');
-  const clear = () => document.querySelectorAll('.reader .playing').forEach(e => e.classList.remove('playing'));
-  if (btn && btn.classList.contains('on')) { TTS.stop(); clear(); btn.classList.remove('on'); btn.textContent = '▶ Tamamını dinle'; return; }
-  if (btn) { btn.classList.add('on'); btn.textContent = '■ Durdur'; }
-  const step = n => {
-    clear();
-    const b = $('#playall');
-    if (n >= queue.length || !b || !b.classList.contains('on') || READER.surah !== key) { if (b) { b.classList.remove('on'); b.textContent = '▶ Tamamını dinle'; } return; }
-    const row = document.getElementById(queue[n][1]);
-    if (row) { row.classList.add('playing'); row.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
-    TTS.say(queue[n][0], () => step(n + 1));
-  };
-  step(0);
-}
+/* Sureler sekmesi: library.js */
 
 function renderProfile(v) {
   regen(); checkDay();
@@ -964,7 +923,7 @@ function renderProfile(v) {
       h('button', { class: 'btn red', onclick: () => { const st = S.settings; S = DEFAULT(); S.settings = st; S.welcomed = true; save(); closeModal(); setTab('path'); } }, 'Sıfırla'),
       h('button', { class: 'btn ghost', onclick: closeModal }, 'Vazgeç')]) }, 'İlerlemeyi sıfırla'),
     h('div', { class: 'note' }, 'Elif Yolu, Kur\'an-ı Kerim okumaya giriş için hazırlanmış bir öğrenme oyunudur: harfler, harekeler, temel kelimeler ve kısa sureler. Mealler kısa ve sadedir. Doğru telaffuz ve tecvid için mutlaka bir hocadan ya da güvenilir kıraat kayıtlarından destek al.'),
-    h('div', { class: 'note', style: 'margin-top:10px' }, 'Kıraat: Mişari Raşid el-Afasi (everyayah.com). Yazı tipleri: Amiri ve Nunito (SIL Open Font License). Sürüm 1.1')));
+    h('div', { class: 'note', style: 'margin-top:10px' }, 'Kıraat: Mişari Raşid el-Afasi (everyayah.com). Kur\'an metni: Medine Mushafı (quranenc.com). Meal: Diyanet İşleri Başkanlığı (tanzil.net). Yazı tipleri: Amiri ve Nunito (SIL Open Font License). Sürüm 1.3')));
 }
 
 function welcome() {
@@ -986,7 +945,7 @@ window.onAndroidBack = function () {
   if ($('#modal')) { if (!modalLocked) closeModal(); return; }
   if (LS) return confirmQuit();
   if (!lessonEl().classList.contains('hidden')) return exitLesson();
-  if (TAB === 'surahs' && READER.surah) { TTS.stop(); READER.surah = null; return render(); }
+  if (TAB === 'surahs' && READER.surah) { TTS.stop(); READER.playAll = false; READER.surah = null; return render(); }
   if (TAB !== 'path') return setTab('path');
   try { Android.exitApp(); } catch (e) { /* browser */ }
 };

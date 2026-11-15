@@ -1,0 +1,1 @@
+window.__qs(112,{"ar":["قُلۡ هُوَ ٱللَّهُ أَحَدٌ","ٱللَّهُ ٱلصَّمَدُ","لَمۡ يَلِدۡ وَلَمۡ يُولَدۡ","وَلَمۡ يَكُن لَّهُۥ كُفُوًا أَحَدُۢ"],"tr":["De ki: O Allah bir tektir","Allah her şeyden müstağni ve her şey O'na muhtaçtır","O doğurmamış ve doğmamıştır","Hiçbir şey O'na denk değildir"]});

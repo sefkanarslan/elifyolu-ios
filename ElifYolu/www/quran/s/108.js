@@ -1,0 +1,1 @@
+window.__qs(108,{"ar":["إِنَّآ أَعۡطَيۡنَٰكَ ٱلۡكَوۡثَرَ","فَصَلِّ لِرَبِّكَ وَٱنۡحَرۡ","إِنَّ شَانِئَكَ هُوَ ٱلۡأَبۡتَرُ"],"tr":["Doğrusu sana pek çok nimet vermişizdir","Öyleyse Rabbin için namaz kıl, kurban kes","Doğrusu adı sanı ortadan kalkacak olan, sana kin tutan kimsedir"]});

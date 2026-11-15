@@ -7,7 +7,7 @@
 'use strict';
 
 const Recite = (() => {
-  const MARKS = /[ؐ-ًؚ-ٰٟۖ-ۭـ]/g;
+  const MARKS = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u08D3-\u08FF\u0640]/g;
   function norm(s) {
     return String(s || '').normalize('NFC')
       .replace(MARKS, '')
@@ -21,6 +21,15 @@ const Recite = (() => {
       .replace(/\s+/g, ' ').trim();
   }
   const words = s => { const n = norm(s); return n ? n.split(' ') : []; };
+  // expected words: Uthmani "dagger alif" (ٰ) is pronounced, so also try it as a full alif
+  // (الصِّرَٰطَ → صرط | صراط). Alternatives are joined with "|".
+  function expWords(s) {
+    const a = String(s || '').split(/\s+/).filter(Boolean);
+    return a.map(w => {
+      const x = norm(w), y = norm(w.replace(/\u0670/g, '\u0627'));
+      return x === y ? x : x + '|' + y;
+    }).filter(Boolean);
+  }
 
   function lev(a, b) {
     const m = a.length, n = b.length;
@@ -45,12 +54,13 @@ const Recite = (() => {
     }
     return best;
   }
-  const same = (e, h) => sim(e, h) >= (Math.min(e.length, h.length) <= 3 ? 0.66 : 0.72);
+  const same1 = (e, h) => sim(e, h) >= (Math.min(e.length, h.length) <= 3 ? 0.66 : 0.72);
+  const same = (e, h) => e.split('|').some(v => same1(v, h));
 
   /* Align expected words with heard words (edit-distance DP over words).
      Returns per expected word: 'ok' | 'wrong' | 'missing' plus a score. */
   function align(expectedText, heardText) {
-    const E = words(expectedText), H = words(heardText);
+    const E = expWords(expectedText), H = words(heardText);
     const m = E.length, n = H.length;
     const D = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
     const B = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(''));
@@ -158,6 +168,40 @@ const Recite = (() => {
   };
   const errText = c => ERR_TEXT[c] || 'Dinleme sırasında bir sorun oldu. Bir daha dene.';
 
-  return { norm, words, sim, align, best, passed, PASS, Speech, errText };
+  /* Hurûf-ı mukattaa: written الٓمٓ but recited letter by letter ("elif lâm mîm"),
+     so a recogniser writes the letter names. They only occur as the first word of
+     the first ayah (and 42:2 عٓسٓقٓ). */
+  const LETTER_NAME = { '\u0627': '\u0627\u0644\u0641', '\u0644': '\u0644\u0627\u0645', '\u0645': '\u0645\u064a\u0645', '\u0635': '\u0635\u0627\u062f', '\u0631': '\u0631\u0627', '\u0643': '\u0643\u0627\u0641', '\u0647': '\u0647\u0627', '\u064a': '\u064a\u0627', '\u0639': '\u0639\u064a\u0646', '\u0637': '\u0637\u0627', '\u0633': '\u0633\u064a\u0646', '\u062d': '\u062d\u0627', '\u0642': '\u0642\u0627\u0641', '\u0646': '\u0646\u0648\u0646' };
+  const MUQ = new Set(['الم', 'المص', 'الر', 'المر', 'كهيعص', 'طه', 'طسم', 'طس', 'يس', 'ص', 'حم', 'عسق', 'ق', 'ن']);
+  function spoken(text, ctx) {
+    const orig = String(text).split(' ').filter(Boolean);
+    const out = [], map = [];
+    orig.forEach((w, k) => {
+      const n = norm(w);
+      const first = ctx && (ctx.firstWord || 0) === 0 && k === 0 && (ctx.ayah === 1 || (ctx.surah === 42 && ctx.ayah === 2));
+      if (first && MUQ.has(n)) [...n].forEach(ch => { out.push(LETTER_NAME[ch]); map.push(k); });
+      else { out.push(w); map.push(k); }
+    });
+    return { text: out.join(' '), map, n: orig.length };
+  }
+  // full check of one ayah (or ayah part): statuses are reported per written word
+  function check(text, texts, ctx) {
+    let sp = spoken(text, ctx);
+    let r = best(sp.text, texts);
+    if (sp.text !== text) {   // some recognisers write the letters as they are (الم): accept that too
+      const plain = best(text, texts);
+      if (plain.score > r.score && plain.extra === 0) { r = plain; sp = spoken(text, null); }
+    }
+    const status = new Array(sp.n).fill(null);
+    sp.map.forEach((k, j) => {
+      const st = r.status[j];
+      if (status[k] === null) status[k] = st;
+      else if (status[k] !== st) status[k] = status[k] === 'ok' || st === 'ok' ? 'wrong' : status[k];
+    });
+    const ok = status.filter(x => x === 'ok').length;
+    return Object.assign({}, r, { status, ok, total: sp.n, pass: passed(r) });
+  }
+
+  return { norm, words, sim, align, best, passed, PASS, spoken, check, Speech, errText };
 })();
 if (typeof module !== 'undefined') module.exports = Recite;
