@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "Das Mikrofon wird genutzt, um deinen auswendigen Vortrag der Verse anzuhören und zu prüfen, ob du richtig liest.";
+"NSSpeechRecognitionUsageDescription" = "Die Spracherkennung wandelt deinen Vortrag in Text um, damit er Wort für Wort mit dem Vers verglichen werden kann.";
+"CFBundleDisplayName" = "Elif Yolu";

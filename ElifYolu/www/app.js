@@ -927,7 +927,7 @@ function renderProfile(v) {
       h('button', { class: 'btn red', onclick: () => { const st = S.settings; S = DEFAULT(); S.settings = st; S.welcomed = true; save(); closeModal(); setTab('path'); } }, 'Sıfırla'),
       h('button', { class: 'btn ghost', onclick: closeModal }, 'Vazgeç')]) }, 'İlerlemeyi sıfırla'),
     h('div', { class: 'note' }, 'Elif Yolu, Kur\'an-ı Kerim okumaya giriş için hazırlanmış bir öğrenme oyunudur: harfler, harekeler, temel kelimeler ve kısa sureler. Mealler kısa ve sadedir. Doğru telaffuz ve tecvid için mutlaka bir hocadan ya da güvenilir kıraat kayıtlarından destek al.'),
-    h('div', { class: 'note', style: 'margin-top:10px' }, 'Kıraat: Mişari Raşid el-Afasi (everyayah.com). Kur\'an metni: Medine Mushafı (quranenc.com). Meal: Diyanet İşleri Başkanlığı (tanzil.net). Yazı tipleri: Amiri, Nunito ve Tajawal (SIL Open Font License). Sürüm 1.4')));
+    h('div', { class: 'note', style: 'margin-top:10px' }, 'Kıraat: Mişari Raşid el-Afasi (everyayah.com). Kur\'an metni: Medine Mushafı (quranenc.com). Meal: Diyanet İşleri Başkanlığı (tanzil.net). Yazı tipleri: Amiri, Nunito ve Tajawal (SIL Open Font License). Sürüm 1.4.1')));
 }
 
 function langChips() {

@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "El micrófono se usa para escuchar las aleyas que recitas de memoria y comprobar que las lees correctamente.";
+"NSSpeechRecognitionUsageDescription" = "El reconocimiento de voz convierte tu recitación en texto para compararla palabra por palabra con la aleya.";
+"CFBundleDisplayName" = "Elif Yolu";

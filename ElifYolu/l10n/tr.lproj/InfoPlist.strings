@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "Ezberden okuduğun ayetleri dinleyip doğru okuyup okumadığını kontrol etmek için mikrofon kullanılır.";
+"NSSpeechRecognitionUsageDescription" = "Okuduğun ayeti yazıya döküp metinle kelime kelime karşılaştırmak için konuşma tanıma kullanılır.";
+"CFBundleDisplayName" = "Elif Yolu";

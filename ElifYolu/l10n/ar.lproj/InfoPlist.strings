@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "يُستخدم الميكروفون للاستماع إلى الآيات التي تقرؤها غيبًا والتحقق من صحة قراءتك.";
+"NSSpeechRecognitionUsageDescription" = "يُستخدم التعرّف على الكلام لتحويل قراءتك إلى نص ومقارنتها بالآية كلمةً كلمة.";
+"CFBundleDisplayName" = "Elif Yolu";

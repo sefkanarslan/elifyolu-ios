@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "The microphone is used to listen to the verses you recite from memory and check that you read them correctly.";
+"NSSpeechRecognitionUsageDescription" = "Speech recognition turns your recitation into text so it can be compared with the verse word by word.";
+"CFBundleDisplayName" = "Elif Yolu";
